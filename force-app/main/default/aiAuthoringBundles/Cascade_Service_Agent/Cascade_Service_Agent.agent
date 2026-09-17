@@ -94,61 +94,6 @@ start_agent support:
                 found: boolean
                     description: "Whether a case matching the number and contact was found"
 
-    reasoning:
-        instructions: ->
-            | Help the user with their support request. Work out whether they
-              are asking a general question, asking about a case they already
-              have, or reporting a problem that needs a new case.
-
-              For a general question, use the knowledge search action and answer
-              from what it returns. Use the answer, articleTitle, and articleUrl
-              values exactly as returned. Do not paraphrase, reword, or add to
-              them. Once you have a result, answer from it and do not search
-              again for the same question.
-
-              For a question about an existing case, use the case status lookup
-              and report the exact status, subject, and lastModified values it
-              returns. If no matching case is found, say so plainly and offer to
-              log a new one.
-
-              If the knowledge search finds nothing usable, say you could not
-              find an answer and offer the user two choices: log a support case,
-              or transfer to a person.
-
-              If the request falls outside customer support, say it is outside
-              what you handle and name what you can help with. Do not answer it.
-
-              If the request is too vague to act on, ask one focused question
-              for the detail you are missing.
-
-            if @variables.created_case_number != "":
-                | A case has already been logged in this conversation as
-                  {!@variables.created_case_number}. Use that number when the
-                  user refers to their case. Do not offer to log another one.
-                  If they still need help, offer a transfer to a person.
-
-        actions:
-            answer_question: @actions.search_knowledge
-                description: "Search the knowledge base to answer a support question"
-                with question = ...
-
-            check_case: @actions.get_case_status
-                description: "Check the status of an existing case"
-                with caseNumber = ...
-                with contactId = @variables.ContactId
-
-            log_a_case: @utils.transition to @subagent.case_creation
-                description: "Log a new support case for a problem you could not resolve"
-                available when @variables.created_case_number == ""
-
-            talk_to_a_person: @utils.transition to @subagent.escalation
-                description: "Transfer the conversation to a human support agent"
-
-subagent case_creation:
-    label: "Case Creation"
-    description: "Collect the details for a new support case and log it"
-
-    actions:
         create_case:
             description: "Create a new support case for the end user"
             target: "apex://CascadeCaseCreator"
@@ -173,28 +118,60 @@ subagent case_creation:
 
     reasoning:
         instructions: ->
-            if @variables.created_case_number == "":
-                | Gather what is needed to log a case: a short summary of the
-                  problem, and a fuller description in the user's own words. Ask
-                  for whatever is still missing. Before logging it, read the
-                  summary back and get the user's agreement.
+            | Help the user with their support request. Work out whether they
+              are asking a general question, asking about a case they already
+              have, or reporting a problem that needs a new case.
+
+              For a general question, use the knowledge search action and answer
+              from what it returns. Use the answer, articleTitle, and articleUrl
+              values exactly as returned. Do not paraphrase, reword, or add to
+              them. Once you have a result, answer from it and do not search
+              again for the same question.
+
+              For a question about an existing case, use the case status lookup
+              and report the exact status, subject, and lastModified values it
+              returns. If no matching case is found, say so plainly and offer to
+              log a new one.
+
+              If the knowledge search finds nothing usable, say you could not
+              find an answer and offer the user two choices: log a support case,
+              or transfer to a person.
+
+              When the user needs a new case, collect a short summary and a
+              fuller description in their own words, and ask for whatever is
+              still missing. Read the summary back and get their agreement, then
+              use the log a case action. Give them the exact case number it
+              returns. Never say a case is logged before the action returns one.
+
+              If the request falls outside customer support, say it is outside
+              what you handle and name what you can help with. Do not answer it.
+
+              If the request is too vague to act on, ask one focused question
+              for the detail you are missing.
 
             if @variables.created_case_number != "":
-                | The case is logged. Give the user the exact case number
-                  {!@variables.created_case_number}, tell them support will
-                  follow up, and ask whether they need anything else.
+                | A case has already been logged in this conversation as
+                  {!@variables.created_case_number}. Use that number when the
+                  user refers to their case. Do not offer to log another one.
+                  If they still need help, offer a transfer to a person.
 
         actions:
-            submit_case: @actions.create_case
-                description: "Log the support case"
+            answer_question: @actions.search_knowledge
+                description: "Search the knowledge base to answer a support question"
+                with question = ...
+
+            check_case: @actions.get_case_status
+                description: "Check the status of an existing case"
+                with caseNumber = ...
+                with contactId = @variables.ContactId
+
+            log_a_case: @actions.create_case
+                description: "Log a new support case for a problem you could not resolve"
                 with subject = ...
                 with problemDescription = ...
                 with contactId = @variables.ContactId
                 set @variables.created_case_number = @outputs.caseNumber
                 available when @variables.created_case_number == ""
-
-            back_to_support: @utils.transition to @subagent.support
-                description: "Go back to general support help"
 
             talk_to_a_person: @utils.transition to @subagent.escalation
                 description: "Transfer the conversation to a human support agent"
