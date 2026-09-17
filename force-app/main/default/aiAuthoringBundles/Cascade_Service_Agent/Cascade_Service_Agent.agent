@@ -177,7 +177,10 @@ subagent case_creation:
                 | Gather what is needed to log a case: a short summary of the
                   problem, and a fuller description in the user's own words. Ask
                   for whatever is still missing. Before logging it, read the
-                  summary back and get the user's agreement.
+                  summary back and get the user's agreement. As soon as the user
+                  agrees, use the submit case action to log it. Do not tell the
+                  user the case is logged until that action returns a case
+                  number.
 
             if @variables.created_case_number != "":
                 | The case is logged. Give the user the exact case number
