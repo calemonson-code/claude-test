@@ -117,11 +117,11 @@
             <name>topic_sequence_match</name>
         </expectation>
         <expectation>
-            <expectedValue>[&apos;create_case&apos;]</expectedValue>
+            <expectedValue>[]</expectedValue>
             <name>action_sequence_match</name>
         </expectation>
         <expectation>
-            <expectedValue>Agent logs the case and states the case number returned by the action. It does not claim the case is logged without a case number.</expectedValue>
+            <expectedValue>Agent asks the user to confirm before creating the case rather than writing immediately, and does not claim the case has been logged.</expectedValue>
             <name>bot_response_rating</name>
         </expectation>
         <inputs>

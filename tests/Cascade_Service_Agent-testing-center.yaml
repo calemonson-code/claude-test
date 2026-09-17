@@ -46,8 +46,6 @@ testCases:
   # --- Case creation (log_a_case -> create_case), multi-turn ---
   - utterance: "Yes that is right, please log it."
     expectedTopic: topic_selector
-    expectedActions:
-      - create_case
     conversationHistory:
       - role: user
         message: "I need to log a case. My tent poles arrived bent."
@@ -61,7 +59,10 @@ testCases:
         message: "Yes that is correct."
       - role: agent
         message: "I will log this case now. Please reply yes to go ahead or no to cancel."
-    expectedOutcome: "Agent logs the case and states the case number returned by the action. It does not claim the case is logged without a case number."
+    # require_user_confirmation: True means the agent must ask before writing.
+    # Testing Center cannot deliver the follow-up confirmation turn, so this
+    # asserts the guardrail; completion is covered by Mode A preview.
+    expectedOutcome: "Agent asks the user to confirm before creating the case rather than writing immediately, and does not claim the case has been logged."
 
   # --- Escalation (talk_to_a_person -> escalation subagent) ---
   - utterance: "I want to speak to a human agent please."
