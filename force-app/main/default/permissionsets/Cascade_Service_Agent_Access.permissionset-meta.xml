@@ -28,6 +28,11 @@
         <field>Case.Subject</field>
         <readable>true</readable>
     </fieldPermissions>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>Knowledge__kav.Summary</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <hasActivationRequired>false</hasActivationRequired>
     <label>Cascade Service Agent Access</label>
     <objectPermissions>

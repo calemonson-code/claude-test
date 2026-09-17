@@ -72,27 +72,51 @@ and current intent all live in surviving conversation history.
 
 ## Actions
 
-### search_knowledge (`support` subagent)
+### AnswerQuestionsWithKnowledge (`support` subagent)
 
-- **Target:** `apex://CascadeKnowledgeSearch`
-- **Status:** NEEDS STUB
+- **Target:** `standardInvocableAction://streamKnowledgeSearch` (platform-native, Agentforce Data Library grounding)
+- **Status:** DRAFTED — 2026-09-17. `rag_feature_config_id` is a `[TBD]` placeholder pending ADL provisioning; not yet functional.
+- **Supersedes:** the custom `search_knowledge` action (`apex://CascadeKnowledgeSearch`), removed from the `.agent` file. See "Why this replaced the Apex approach" below.
 
 | Input | Type | Required | Source |
 |---|---|---|---|
-| `question` | string | Yes | LLM slot-fill from conversation |
+| `query` | string | Yes | LLM slot-fill from conversation |
+| `citationsUrl` | string | No | Bound from top-level `@knowledge.citations_url` |
+| `ragFeatureConfigId` | string | No | Bound from top-level `@knowledge.rag_feature_config_id` |
+| `citationsEnabled` | boolean | No | Bound from top-level `@knowledge.citations_enabled` |
 
 | Output | Type | Visible to User? | Notes |
 |---|---|---|---|
-| `answer` | string | Yes | Reproduced verbatim in the response |
-| `articleTitle` | string | Yes | |
-| `articleUrl` | string | Yes | |
-| `foundMatch` | boolean | No | Signals the "I couldn't find an answer" branch |
+| `knowledgeSummary` | object (rich text) | Yes | Reproduced verbatim; empty means retrieval missed |
+| `citationSources` | object | No | Source links for the planner's hydrated prompt |
 
-**Stubbing requirement:** invocable Apex class `CascadeKnowledgeSearch` with
-inner `Request` (`question`) and `Result` (`answer`, `articleTitle`,
-`articleUrl`, `foundMatch`). Real implementation will need a decision on the
-retrieval source — Knowledge article SOSL, a Data Library retriever, or a prompt
-template. **[TBD — depends on where Cascade's support content actually lives.]**
+**Why this replaced the Apex approach:** live-preview testing on 2026-09-17
+found that `CascadeKnowledgeSearch.cls`'s direct SOSL query against
+`Knowledge__kav` always returned zero rows for the running agent, because
+Salesforce Knowledge object access is gated by the `Knowledge User` user
+permission, and the `Einstein Agent` User License — which `default_agent_user`
+is required to hold — does not support that permission on this org
+(`FIELD_INTEGRITY_EXCEPTION: Knowledge User is not allowed for this License
+Type`, confirmed via direct API test). No choice of `default_agent_user` fixes
+this; it's a platform license constraint, not a permissions gap. Grounding via
+an Agentforce Data Library sidesteps it — the retriever queries a Data Cloud
+copy of the article content, which needs only ordinary object/field Read via a
+permission set, not the license-gated `Knowledge User` bit (see the
+agentforce-generate skill's Data Library reference, "Wiring the ADL into
+Agent Script" section 5b).
+
+**Provisioning still required (not yet done — needs confirmation before an org
+change):**
+1. Create a `KNOWLEDGE`-source-type ADL (`sf agent adl create --source-type knowledge --primary-index-field1 ArticleNumber --primary-index-field2 Title --content-fields Summary`) against the 5 seeded Cascade support articles.
+2. Poll to `retrieverId` populated, then wait ~10 min and verify non-empty `knowledgeSummary` on a test query (KNOWLEDGE libraries have a day-0 chunking race condition — `retrieverId` alone does not mean ready).
+3. Set `knowledge.rag_feature_config_id` in the `.agent` file to `"ARFPC_<libraryId>"`, replacing the `[TBD]` placeholder.
+4. Deploy a permission set granting the Einstein Agent User Object Read on `Knowledge__kav` and Field Read on the indexed fields, and confirm it also holds a Data Cloud permset/PSL (required for any ADL-grounded retrieval, independent of source type).
+5. Confirm article `Language` (`en_US`) matches the agent's `EndUserLanguage` / default locale — a mismatch silently excludes chunks at query time.
+6. Re-run live preview with the same "How do I reset my password?" utterance and confirm a populated, non-hallucinated answer.
+
+Until steps 1–4 complete, `answer_question` will behave like the old broken
+action (empty result, "I couldn't find an answer" branch) — the `.agent` file
+change alone does not fix retrieval.
 
 ### get_case_status (`support` subagent)
 
@@ -139,7 +163,7 @@ with the reserved `description` property in the Agent Script action block.
 
 | Action | Subagent | Invocation Mode | Why |
 |---|---|---|---|
-| `search_knowledge` | `support` | planner slot-fill | The model judges when a question is answerable from knowledge |
+| `AnswerQuestionsWithKnowledge` | `support` | planner slot-fill | The model judges when a question is answerable from knowledge |
 | `get_case_status` | `support` | planner slot-fill | Requires a case number the user supplies mid-conversation |
 | `create_case` | `case_creation` | planner slot-fill + `require_user_confirmation` | Consequential write; the user confirms before it fires |
 
@@ -185,8 +209,15 @@ branches inside `support`, per the one-execution-block default.
 
 ## Open Items
 
-1. Choose the target org and confirm an Einstein Agent User exists in it.
-2. Decide the knowledge retrieval source for `CascadeKnowledgeSearch`.
-3. Generate and implement the three Apex classes.
+1. ~~Choose the target org and confirm an Einstein Agent User exists in it.~~
+   Done — `cascade-dev`, `Cascade_Service_Agent_agent@00Dak00001FNjPtEAL.ext`.
+2. Provision the KNOWLEDGE-source ADL and wire its `rag_feature_config_id` into
+   the `.agent` file's `knowledge:` block — see `AnswerQuestionsWithKnowledge`
+   provisioning checklist above. Needs explicit confirmation before the org
+   changes (ADL creation, permission set deploy) run.
+3. Decide whether to delete the now-unreferenced `CascadeKnowledgeSearch.cls`,
+   or keep it until the ADL path is verified working end-to-end.
 4. Replace the generic support domain with Cascade's actual use cases.
-5. Preview against realistic utterances before any publish decision.
+5. Re-run live preview against "How do I reset my password?" once ADL
+   provisioning completes, to confirm the license-gated failure is actually
+   resolved.

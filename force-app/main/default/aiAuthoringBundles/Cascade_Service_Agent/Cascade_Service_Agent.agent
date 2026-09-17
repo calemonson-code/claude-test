@@ -38,6 +38,11 @@ variables:
     created_case_number: mutable string = ""
         description: "Case number returned by a successful case creation. Blocks a second case in the same session and supplies the exact number quoted back to the user."
 
+knowledge:
+    rag_feature_config_id: "ARFPC_1JDak00000MUPM5GAP"
+    citations_enabled: True
+    citations_url: ""
+
 language:
     default_locale: "en_US"
     additional_locales: ""
@@ -48,27 +53,48 @@ start_agent support:
     description: "Answer support questions from knowledge and report the status of existing cases"
 
     actions:
-        search_knowledge:
-            description: "Search the support knowledge base for an answer to the user's question"
-            target: "apex://CascadeKnowledgeSearch"
-            include_in_progress_indicator: True
-            progress_indicator_message: "Looking that up..."
+        AnswerQuestionsWithKnowledge:
+            description: "Answers questions about company policies, procedures, troubleshooting, or product information by searching knowledge articles. For example: 'What is your return policy?' or 'How do I fix an issue?'"
             inputs:
-                question: string
-                    description: "The user's support question, in their own words"
+                query: string
+                    description: "Required. A string created by generative AI to be used in the knowledge article search."
+                    label: "Query"
                     is_required: True
+                    is_user_input: True
+                citationsUrl: string = @knowledge.citations_url
+                    description: "The URL to use for citations for custom Agents."
+                    label: "Citations Url"
+                    is_required: False
+                    is_user_input: True
+                ragFeatureConfigId: string = @knowledge.rag_feature_config_id
+                    description: "The RAG Feature ID to use for grounding this copilot action invocation."
+                    label: "RAG Feature Configuration Id"
+                    is_required: False
+                    is_user_input: True
+                citationsEnabled: boolean = @knowledge.citations_enabled
+                    description: "Whether or not citations are enabled."
+                    label: "Citations Enabled"
+                    is_required: False
+                    is_user_input: True
             outputs:
-                answer: string
-                    description: "Answer text drawn from the matching article"
+                knowledgeSummary: object
+                    description: "A string formatted as rich text that includes a summary of the information retrieved from the knowledge articles and citations to those articles."
+                    label: "Knowledge Summary"
+                    complex_data_type_name: "lightning__richTextType"
+                    filter_from_agent: False
                     is_displayable: True
-                articleTitle: string
-                    description: "Title of the matching article"
-                    is_displayable: True
-                articleUrl: string
-                    description: "Link to the matching article"
-                    is_displayable: True
-                foundMatch: boolean
-                    description: "Whether the search found a usable article"
+                citationSources: object
+                    description: "Source links for the chunks in the hydrated prompt that's used by the planner service."
+                    label: "Citation Sources"
+                    complex_data_type_name: "@apexClassType/AiCopilot__GenAiCitationInput"
+                    filter_from_agent: False
+                    is_displayable: False
+            target: "standardInvocableAction://streamKnowledgeSearch"
+            label: "Answer Questions with Knowledge"
+            require_user_confirmation: False
+            include_in_progress_indicator: True
+            progress_indicator_message: "Getting answers"
+            source: "EmployeeCopilot__AnswerQuestionsWithKnowledge"
 
         get_case_status:
             description: "Look up the current status of an existing support case by case number"
@@ -122,20 +148,20 @@ start_agent support:
               are asking a general question, asking about a case they already
               have, or reporting a problem that needs a new case.
 
-              For a general question, use the knowledge search action and answer
-              from what it returns. Use the answer, articleTitle, and articleUrl
-              values exactly as returned. Do not paraphrase, reword, or add to
-              them. Once you have a result, answer from it and do not search
-              again for the same question.
+              For a general question, call AnswerQuestionsWithKnowledge before
+              answering. Answer only from the returned knowledgeSummary and cite
+              only the sources it returns. Do not paraphrase, invent, or add to
+              what it returns. Once you have a result, answer from it and do not
+              search again for the same question.
 
               For a question about an existing case, use the case status lookup
               and report the exact status, subject, and lastModified values it
               returns. If no matching case is found, say so plainly and offer to
               log a new one.
 
-              If the knowledge search finds nothing usable, say you could not
-              find an answer and offer the user two choices: log a support case,
-              or transfer to a person.
+              If AnswerQuestionsWithKnowledge returns an empty knowledgeSummary,
+              say you could not find an answer and offer the user two choices:
+              log a support case, or transfer to a person.
 
               When the user needs a new case, collect a short summary and a
               fuller description in their own words, and ask for whatever is
@@ -156,9 +182,12 @@ start_agent support:
                   If they still need help, offer a transfer to a person.
 
         actions:
-            answer_question: @actions.search_knowledge
+            answer_question: @actions.AnswerQuestionsWithKnowledge
                 description: "Search the knowledge base to answer a support question"
-                with question = ...
+                with query = ...
+                with citationsUrl = ...
+                with ragFeatureConfigId = ...
+                with citationsEnabled = ...
 
             check_case: @actions.get_case_status
                 description: "Check the status of an existing case"
