@@ -38,8 +38,13 @@ public with sharing class CascadeCaseStatusLookup {
             r.found = false;
 
             Case c = caseByNumber.get(req.caseNumber);
+            // Fail closed: without an identified contact we cannot confirm the
+            // case belongs to the person asking. Case numbers are sequential
+            // and therefore guessable, so an unidentified caller must not be
+            // able to read another customer's case.
             Boolean contactMatches = c != null
-                && (req.contactId == null || c.ContactId == req.contactId);
+                && req.contactId != null
+                && c.ContactId == req.contactId;
 
             if (c != null && contactMatches) {
                 r.status = c.Status;
