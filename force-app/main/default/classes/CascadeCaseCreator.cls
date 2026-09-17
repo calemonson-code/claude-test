@@ -25,10 +25,20 @@ public with sharing class CascadeCaseCreator {
 
         insert as user casesToInsert;
 
+        // CaseNumber is an auto-number field: it is not populated on the
+        // in-memory records after insert, so re-query to get it.
+        Map<Id, Case> insertedById = new Map<Id, Case>([
+            SELECT Id, CaseNumber
+            FROM Case
+            WHERE Id IN :casesToInsert
+            WITH USER_MODE
+        ]);
+
         List<Result> results = new List<Result>();
         for (Case c : casesToInsert) {
+            Case inserted = insertedById.get(c.Id);
             Result r = new Result();
-            r.caseNumber = c.CaseNumber;
+            r.caseNumber = inserted == null ? null : inserted.CaseNumber;
             r.caseId = c.Id;
             results.add(r);
         }
