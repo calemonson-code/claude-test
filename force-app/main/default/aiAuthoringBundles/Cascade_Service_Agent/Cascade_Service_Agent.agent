@@ -152,7 +152,7 @@ subagent case_creation:
         create_case:
             description: "Create a new support case for the end user"
             target: "apex://CascadeCaseCreator"
-            require_user_confirmation: True
+            require_user_confirmation: False
             include_in_progress_indicator: True
             progress_indicator_message: "Logging your case..."
             inputs:
