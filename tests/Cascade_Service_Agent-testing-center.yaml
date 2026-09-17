@@ -62,7 +62,7 @@ testCases:
     # require_user_confirmation: True means the agent must ask before writing.
     # Testing Center cannot deliver the follow-up confirmation turn, so this
     # asserts the guardrail; completion is covered by Mode A preview.
-    expectedOutcome: "Agent asks the user to confirm before creating the case rather than writing immediately, and does not claim the case has been logged."
+    expectedOutcome: "Agent explicitly asks the user to reply yes or no before creating the case. It is acceptable for the agent to say it intends to log the case, as long as it waits for that confirmation and does not state a case number or say the case has already been created."
 
   # --- Escalation (talk_to_a_person -> escalation subagent) ---
   - utterance: "I want to speak to a human agent please."

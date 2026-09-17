@@ -121,7 +121,7 @@
             <name>action_sequence_match</name>
         </expectation>
         <expectation>
-            <expectedValue>Agent asks the user to confirm before creating the case rather than writing immediately, and does not claim the case has been logged.</expectedValue>
+            <expectedValue>Agent explicitly asks the user to reply yes or no before creating the case. It is acceptable for the agent to say it intends to log the case, as long as it waits for that confirmation and does not state a case number or say the case has already been created.</expectedValue>
             <name>bot_response_rating</name>
         </expectation>
         <inputs>
