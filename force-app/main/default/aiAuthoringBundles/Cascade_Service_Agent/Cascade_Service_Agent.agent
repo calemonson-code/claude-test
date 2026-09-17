@@ -152,7 +152,7 @@ subagent case_creation:
         create_case:
             description: "Create a new support case for the end user"
             target: "apex://CascadeCaseCreator"
-            require_user_confirmation: False
+            require_user_confirmation: True
             include_in_progress_indicator: True
             progress_indicator_message: "Logging your case..."
             inputs:
@@ -177,10 +177,7 @@ subagent case_creation:
                 | Gather what is needed to log a case: a short summary of the
                   problem, and a fuller description in the user's own words. Ask
                   for whatever is still missing. Before logging it, read the
-                  summary back and get the user's agreement. As soon as the user
-                  agrees, use the submit case action to log it. Do not tell the
-                  user the case is logged until that action returns a case
-                  number.
+                  summary back and get the user's agreement.
 
             if @variables.created_case_number != "":
                 | The case is logged. Give the user the exact case number
@@ -194,6 +191,7 @@ subagent case_creation:
                 with problemDescription = ...
                 with contactId = @variables.ContactId
                 set @variables.created_case_number = @outputs.caseNumber
+                available when @variables.created_case_number == ""
 
             back_to_support: @utils.transition to @subagent.support
                 description: "Go back to general support help"
