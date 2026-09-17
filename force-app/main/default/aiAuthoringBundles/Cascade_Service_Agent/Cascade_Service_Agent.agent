@@ -191,7 +191,6 @@ subagent case_creation:
                 with problemDescription = ...
                 with contactId = @variables.ContactId
                 set @variables.created_case_number = @outputs.caseNumber
-                available when @variables.created_case_number == ""
 
             back_to_support: @utils.transition to @subagent.support
                 description: "Go back to general support help"
